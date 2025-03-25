@@ -1,31 +1,31 @@
-def buildNumber = env.BUILD_NUMBER.toString()
+pipeline {
+  agent any
 
-node {
-    stage("Git") {
-        git credentialsId: 'alhajgit', url: 'https://github.com/alhaj1986/dotnetcorewebapp.git'
-    }
-    stage("Sonar Begin") {
-        withCredentials([string(credentialsId: 'sonar-token', variable: 'DOTNETKONF_SONAR_TOKEN')]) {
-            sh 'dotnet sonarscanner begin /k:"dotnetkonf-test" /d:sonar.host.url="https://cq-test.monofor.com" /d:sonar.login="$DOTNETKONF_SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths=".sonarqube/coverage/api.opencover.xml"'
-        }
-    }
-    stage("Build") {
-        sh "dotnet build"
-    }    
-    stage("Test"){
-        sh 'dotnet test ./test/sampleapp.Web.Test/sampleapp.Web.Test.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=../../.sonarqube/coverage/api.opencover.xml'
-    }
-    stage("Sonar End") {
-        withCredentials([string(credentialsId: 'sonar-token', variable: 'DOTNETKONF_SONAR_TOKEN')]) {
-            sh 'dotnet sonarscanner end /d:sonar.login="$DOTNETKONF_SONAR_TOKEN"'
-        }
-    }
-    stage('Build') {
+  environment {
+    AWS_REGION = 'us-east-1'
+    ECR_REPO_NAME = 'dotnetcoreapp'
+    IMAGE_TAG = 'latest'
+    AWS_ACCOUNT_ID = '920373030046'
+  }
+
+  stages {
+    stage('Git') {
       steps {
-        sh 'dotnet build DotNetCorePipeline.sln'
+        git credentialsId: 'alhajgit', url: 'https://github.com/alhaj1986/dotnetcoresamplewebapp.git'
       }
     }
 
+    stage('Build') {
+      steps {
+        sh 'dotnet build'
+      }
+    }
+
+    stage('Test') {
+      steps {
+        sh 'dotnet test ./test/dotnetKonf.Web.Test/dotnetKonf.Web.Test.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=../../.sonarqube/coverage/api.opencover.xml'
+      }
+    }
 
     stage('Docker Build') {
       steps {
@@ -35,22 +35,22 @@ node {
       }
     }
 
-   stage('Push to ECR') {
+    stage('Push to ECR') {
       steps {
         script {
           // Authenticate with ECR
           sh '''
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 920373030046.dkr.ecr.us-east-1.amazonaws.com
+          aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
           '''
 
           // Tag the Docker image
           sh '''
-          docker tag dotnetcoreapp:latest 920373030046.dkr.ecr.us-east-1.amazonaws.com/dotnetcoreapp:latest
+          docker tag ${ECR_REPO_NAME}:${IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}
           '''
 
           // Push the Docker image to ECR
           sh '''
-          docker push 920373030046.dkr.ecr.us-east-1.amazonaws.com/dotnetcoreapp:latest
+          docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}
           '''
         }
       }
