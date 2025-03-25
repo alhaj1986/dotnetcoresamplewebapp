@@ -2,7 +2,7 @@ def buildNumber = env.BUILD_NUMBER.toString()
 
 node {
     stage("Git") {
-        git credentialsId: 'gitlab', url: 'git@gitlab.com:selcukermaya/dotnetkonf.git'
+        git credentialsId: 'alhajgit', url: 'https://github.com/alhaj1986/dotnetcorewebapp.git'
     }
     stage("Sonar Begin") {
         withCredentials([string(credentialsId: 'sonar-token', variable: 'DOTNETKONF_SONAR_TOKEN')]) {
@@ -13,25 +13,53 @@ node {
         sh "dotnet build"
     }    
     stage("Test"){
-        sh 'dotnet test ./test/dotnetKonf.Web.Test/dotnetKonf.Web.Test.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=../../.sonarqube/coverage/api.opencover.xml'
+        sh 'dotnet test ./test/sampleapp.Web.Test/sampleapp.Web.Test.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=../../.sonarqube/coverage/api.opencover.xml'
     }
     stage("Sonar End") {
         withCredentials([string(credentialsId: 'sonar-token', variable: 'DOTNETKONF_SONAR_TOKEN')]) {
             sh 'dotnet sonarscanner end /d:sonar.login="$DOTNETKONF_SONAR_TOKEN"'
         }
     }
-    stage("Docker Build") {
-        dir("./src") {
-            sh "docker build -t registry.gitlab.com/selcukermaya/dotnetkonf ."
-            sh "docker tag registry.gitlab.com/selcukermaya/dotnetkonf registry.gitlab.com/selcukermaya/dotnetkonf:latest"
-            sh "docker tag registry.gitlab.com/selcukermaya/dotnetkonf registry.gitlab.com/selcukermaya/dotnetkonf:build-${buildNumber}"
-        }
+    stage('Build') {
+      steps {
+        sh 'dotnet build DotNetCorePipeline.sln'
+      }
     }
-    stage("Docker Push") {
-        withCredentials([string(credentialId: "gitlab-token", variable: 'GITLAB_TOKEN')]) {
-            sh "docker login registry.gitlab.com -u selcukermaya -p ${GITLAB_TOKEN}"
-            sh "docker push registry.gitlab.com/selcukermaya/dotnetkonf:latest"
-            sh "docker push registry.gitlab.com/selcukermaya/dotnetkonf:build-${buildNumber}"
+
+
+    stage('Docker Build') {
+      steps {
+        script {
+          docker.build("${env.ECR_REPO_NAME}:${env.IMAGE_TAG}")
         }
+      }
     }
+
+   stage('Push to ECR') {
+      steps {
+        script {
+          // Authenticate with ECR
+          sh '''
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 920373030046.dkr.ecr.us-east-1.amazonaws.com
+          '''
+
+          // Tag the Docker image
+          sh '''
+          docker tag dotnetcoreapp:latest 920373030046.dkr.ecr.us-east-1.amazonaws.com/dotnetcoreapp:latest
+          '''
+
+          // Push the Docker image to ECR
+          sh '''
+          docker push 920373030046.dkr.ecr.us-east-1.amazonaws.com/dotnetcoreapp:latest
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      cleanWs()
+    }
+  }
 }
