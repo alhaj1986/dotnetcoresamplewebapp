@@ -11,4 +11,4 @@ FROM mcr.microsoft.com/dotnet/aspnet:6.0
 WORKDIR /dotnetkonf
 COPY --from=build-env /dotnetkonf .
 
-ENTRYPOINT ["dotnet", "dotnetKonf.Web.Test.dll"]
+ENTRYPOINT ["dotnet", "dotnetKonf.Web.dll"]
