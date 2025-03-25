@@ -1,11 +1,11 @@
-FROM microsoft/dotnet:2.1-sdk AS builder
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-env
 WORKDIR /source
 
 COPY . .
 RUN dotnet restore dotnetKonf.Web/dotnetKonf.Web.csproj
 RUN dotnet publish dotnetKonf.Web/dotnetKonf.Web.csproj --output /dotnetkonf/ --configuration release
 
-FROM microsoft/dotnet:2.1-aspnetcore-runtime
+FROM mcr.microsoft.com/dotnet/aspnet:6.0
 WORKDIR /dotnetkonf
 COPY --from=builder /dotnetkonf .
 
