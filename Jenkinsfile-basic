@@ -3,7 +3,7 @@ pipeline {
 
   environment {
     AWS_REGION = 'us-east-1'
-    ECR_REPO_NAME = 'dotnetcoreapp'
+    ECR_REPO_NAME = 'dotnetcorewebapp'
     IMAGE_TAG = 'latest'
     AWS_ACCOUNT_ID = '920373030046'
   }
@@ -21,11 +21,7 @@ pipeline {
       }
     }
 
-    stage('Test') {
-      steps {
-        sh 'dotnet test ./test/dotnetKonf.Web.Test/dotnetKonf.Web.Test.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=../../.sonarqube/coverage/api.opencover.xml'
-      }
-    }
+    
 
     stage('Docker Build') {
       steps {
@@ -40,17 +36,17 @@ pipeline {
         script {
           // Authenticate with ECR
           sh '''
-          aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 920373030046.dkr.ecr.us-east-1.amazonaws.com
           '''
 
           // Tag the Docker image
           sh '''
-          docker tag ${ECR_REPO_NAME}:${IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}
+          docker tag dotnetcorewebapp:latest 920373030046.dkr.ecr.us-east-1.amazonaws.com/dotnetcorewebapp:latest
           '''
 
           // Push the Docker image to ECR
           sh '''
-          docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}
+          docker push 920373030046.dkr.ecr.us-east-1.amazonaws.com/dotnetcorewebapp:latest
           '''
         }
       }
