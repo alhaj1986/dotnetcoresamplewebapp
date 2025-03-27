@@ -34,19 +34,41 @@ pipeline {
     stage('Push to ECR') {
       steps {
         script {
-          // Authenticate with ECR
+       
           sh '''
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 920373030046.dkr.ecr.us-east-1.amazonaws.com
           '''
 
-          // Tag the Docker image
+ 
           sh '''
           docker tag dotnetcorewebapp:latest 920373030046.dkr.ecr.us-east-1.amazonaws.com/dotnetcorewebapp:latest
           '''
 
-          // Push the Docker image to ECR
+    
           sh '''
           docker push 920373030046.dkr.ecr.us-east-1.amazonaws.com/dotnetcorewebapp:latest
+          '''
+        }
+      }
+    }
+  stage('Run Container') {
+      steps {
+        script {
+          // Remove existing container if it exists
+          sh '''
+          if [ $(docker ps -a -q -f name=dotnetcorewebapp_container) ]; then
+            docker rm -f dotnetcorewebapp_container
+          fi
+          '''
+
+          // Pull the latest image from ECR
+          sh '''
+          docker pull ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}
+          '''
+
+          // Run the container
+          sh '''
+          docker run -d --name dotnetcorewebapp_container -p 8090:8085 ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}
           '''
         }
       }
